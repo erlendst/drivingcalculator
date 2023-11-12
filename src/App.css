@@ -30,9 +30,12 @@ input[type="numeric"] {
 .calculator {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 100%;
   text-align: center;
+  max-width: 900px;
+  overflow: hidden;
 }
 
 .headlines {
@@ -48,6 +51,7 @@ input[type="numeric"] {
 }
 
 .resultSection {
+  box-sizing: border-box;
   background: #3a4d39;
   color: white;
   padding: 22px 38px;
