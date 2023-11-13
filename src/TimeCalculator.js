@@ -90,8 +90,7 @@ const TimeCalculator = () => {
           timekalkulatoren 😎{" "}
         </p>
         <p className="additionalInfo">
-          Kjøretiden blir fordelt 50/50 mellom prosjekt og reisetid. For best
-          resultat, skriv inn tiden i hele kvarter.
+          Kjøretiden blir fordelt 50/50 mellom prosjekt og reisetid.
         </p>
       </div>
       <div className="inputSection">
