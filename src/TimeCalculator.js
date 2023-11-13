@@ -86,7 +86,7 @@ const TimeCalculator = () => {
       <div className="headlines">
         <h1>– Hjelp, jeg skal føre timer for reising til Hønefoss! 🚗💨</h1>
         <p>
-          Bruk mer tid på jobb og mindre tid på timeføring med denne enkle
+          Bruk mer tid på jobb og mindre tid på hoderegning med denne enkle
           timekalkulatoren 😎{" "}
         </p>
         <p className="additionalInfo">
