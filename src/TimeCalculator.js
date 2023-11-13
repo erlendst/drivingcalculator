@@ -153,7 +153,7 @@ const TimeCalculator = () => {
           Du brukte <span className="strongHour">{timeSpentDriving}</span> på
           kjøring. Det betyr at du kan føre{" "}
           <span className="strongHour">{roundedDecimalTimeDriving}</span> på
-          reisetid.
+          reisetid {"("}INT5153{")"}.
         </p>
         <p>
           Du jobbet <span className="strongHour">{timeSpentWorking}</span> {"("}
