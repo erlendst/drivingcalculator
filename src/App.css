@@ -23,7 +23,7 @@ input:focus {
 }
 
 input[type="numeric"] {
-  max-width: 28px;
+  max-width: 40px;
   text-align: center;
 }
 
@@ -101,7 +101,7 @@ h3 {
   }
   input[type="numeric"] {
     margin: 0 auto;
-    max-width: 80px;
+    max-width: 100px;
   }
   input {
     padding: 22px 28px;
