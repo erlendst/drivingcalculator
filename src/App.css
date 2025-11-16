@@ -168,6 +168,12 @@ h1 {
   margin: 0;
 }
 
+.desktopColumn,
+.grunnlagINT,
+.grunnlagKRT {
+  flex: 2 !important;
+}
+
 @media screen and (max-width: 700px) {
   .calculator {
     position: relative;

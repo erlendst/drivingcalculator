@@ -59,6 +59,7 @@ const TimeCalculator = () => {
     const totalDrivingMs = drivingTime1 + drivingTime2;
     const totalReisetidHours = totalDrivingMs / msPerHour;
 
+    // Reisetid utover første time
     const reiseMinusNormaltidHours = Math.max(totalReisetidHours - 1, 0);
 
     const jobbTidMs = returnStart - arrival;
@@ -72,11 +73,19 @@ const TimeCalculator = () => {
 
     const totalJobbTidHours = jobbTidHours - lunsjHours;
 
+    // Fordel reisetid: inntil 1t på KRT, resten på INT
     const krtReiseDel = Math.min(reiseMinusNormaltidHours, 1);
     const intReiseDel = Math.max(reiseMinusNormaltidHours - krtReiseDel, 0);
 
+    // NY LOGIKK:
+    // Ekstra jobbing i bil reduserer INT først,
+    // resten (hvis ekstraJobb > intReiseDel) gir ekstra KRT-tid.
+    const ekstraJobbTrekkFraINT = Math.min(intReiseDel, ekstraJobbHours);
+    const justertINTReise = intReiseDel - ekstraJobbTrekkFraINT;
+
+    // KRT får fortsatt all ekstra jobbing + KRT-reise + jobbtid
     const KRTBase = totalJobbTidHours + ekstraJobbHours + krtReiseDel;
-    const INTBase = intReiseDel;
+    const INTBase = justertINTReise;
 
     const finalKRT = roundToQuarter
       ? roundToNearestQuarterUp(KRTBase)
@@ -95,6 +104,10 @@ const TimeCalculator = () => {
     setKRTTid(finalKRT);
     setINTTid(finalINT);
   };
+
+  // Verdier for å forklare INT-raden visuelt
+  const intReisetidGrunnlag = Math.max(reiseTidMinusNormaltid - 1, 0); // samme som intReiseDel
+  const ekstraJobbTrekkFraINT = Math.min(intReisetidGrunnlag, ekstraJobbTid);
 
   return (
     <div className="calculator">
@@ -237,6 +250,7 @@ const TimeCalculator = () => {
               <p className="desktopColumn">Grunnlag</p>
               <p>Resultat</p>
             </div>
+
             <div className="tableRow">
               <p className="firstColumn">KRT-kode</p>
               <div className="grunnlagKRT">
@@ -259,12 +273,22 @@ const TimeCalculator = () => {
               <p className="firstColumn">INT5153</p>
               <div className="grunnlagINT">
                 <div>
-                  +{formatHoursShort(Math.max(reiseTidMinusNormaltid - 1, 0))}{" "}
-                  ekstra reisetid
+                  +{formatHoursShort(intReisetidGrunnlag)} ekstra reisetid
+                </div>
+                <div>
+                  {ekstraJobbTrekkFraINT > 0 && (
+                    <i>
+                      {"("}
+                      {formatHoursShort(ekstraJobbTrekkFraINT)} ekstra jobbtid
+                      er flyttet til KRT
+                      {")"}
+                    </i>
+                  )}
                 </div>
               </div>
               <span>{formatHoursShort(INTTid)}</span>
             </div>
+
             <div className="roundingToggle">
               <label>
                 Rund opp til nærmeste kvarter
