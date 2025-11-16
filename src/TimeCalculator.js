@@ -1,24 +1,77 @@
 import React, { useState, useEffect } from "react";
 
+const MS_PER_HOUR = 3600000;
+
+/**
+ * Lager en dato ut fra en klokkeslett-streng (HH:mm)
+ * Brukes kun til å regne tidsforskjeller.
+ */
+const lagDatoFraTid = (tid) => new Date(`1970-01-01T${tid}:00Z`);
+
+/**
+ * Regner forskjellen i timer mellom to klokkeslett.
+ */
+const timerMellom = (startTid, sluttTid) => {
+  const start = lagDatoFraTid(startTid);
+  const slutt = lagDatoFraTid(sluttTid);
+  return (slutt.getTime() - start.getTime()) / MS_PER_HOUR;
+};
+
+/**
+ * Konverterer minutter til timer (desimal).
+ */
+const minutterTilTimer = (minutter) => {
+  const min = parseInt(String(minutter ?? 0), 10) || 0;
+  return min / 60;
+};
+
+/**
+ * Runder opp til nærmeste kvarter (0,25t).
+ * Negativt eller null gir 0.
+ */
+const rundOppTilNesteKvarter = (timer) => {
+  if (timer <= 0) return 0;
+  return Math.ceil(timer * 4) / 4;
+};
+
+/**
+ * Viser timer som kort tekst, f.eks. "1,25t".
+ */
+const formaterTimerKort = (timer) => {
+  const safe = Math.max(timer, 0);
+  const avrundet = Math.round(safe * 100) / 100;
+  const str = avrundet.toString().replace(".", ",");
+  return `${str}t`;
+};
+
 const TimeCalculator = () => {
+  // Inndata (tidspunkter)
   const [startTime, setStartTime] = useState("08:00");
   const [arrivalTime, setArrivalTime] = useState("09:30");
   const [returnStartTime, setReturnStartTime] = useState("14:30");
   const [returnArrivalTime, setReturnArrivalTime] = useState("16:00");
-  const [minutesWorking, setMinutesWorking] = useState(0);
-  const [minutesLunch, setMinutesLunch] = useState(30);
+
+  // Inndata (minutter)
+  const [ekstraJobbMinutter, setEkstraJobbMinutter] = useState(0);
+  const [lunsjMinutter, setLunsjMinutter] = useState(30);
 
   // Beregnede verdier i timer (desimal)
-  const [totalReisetid, setTotalReisetid] = useState(0);
-  const [reiseTidMinusNormaltid, setReiseTidMinusNormaltid] = useState(0);
-  const [jobbTid, setJobbTid] = useState(0);
-  const [lunsjTid, setLunsjTid] = useState(0);
-  const [ekstraJobbTid, setEkstraJobbTid] = useState(0);
-  const [totalJobbTid, setTotalJobbTid] = useState(0);
-  const [KRTTid, setKRTTid] = useState(0);
-  const [INTTid, setINTTid] = useState(0);
+  const [totalReisetidTimer, setTotalReisetidTimer] = useState(0);
+  const [reisetidUtoverForsteTime, setReisetidUtoverForsteTime] = useState(0);
+  const [arbeidstidTimer, setArbeidstidTimer] = useState(0);
+  const [lunsjTimer, setLunsjTimer] = useState(0);
+  const [ekstraJobbTimer, setEkstraJobbTimer] = useState(0);
+  const [jobbTidEtterLunsjTimer, setJobbTidEtterLunsjTimer] = useState(0);
+  const [krtTimer, setKrtTimer] = useState(0);
+  const [intTimer, setIntTimer] = useState(0);
 
-  const [roundToQuarter, setRoundToQuarter] = useState(true);
+  const [rundOppTilKvarter, setRundOppTilKvarter] = useState(true);
+
+  // Total reisetid i minutter – brukes for å begrense "ekstra jobbing i bilen"
+  const maksEkstraJobbMinutter = Math.max(
+    0,
+    Math.round(totalReisetidTimer * 60)
+  );
 
   useEffect(() => {
     beregnTid();
@@ -28,86 +81,144 @@ const TimeCalculator = () => {
     arrivalTime,
     returnStartTime,
     returnArrivalTime,
-    minutesWorking,
-    minutesLunch,
-    roundToQuarter,
+    ekstraJobbMinutter,
+    lunsjMinutter,
+    rundOppTilKvarter,
   ]);
 
-  const roundToNearestQuarterUp = (hours) => {
-    if (hours <= 0) return 0;
-    return Math.ceil(hours * 4) / 4;
-  };
-
-  const formatHoursShort = (hours) => {
-    const safe = Math.max(hours, 0);
-    const rounded = Math.round(safe * 100) / 100;
-    let str = rounded.toString().replace(".", ",");
-    return `${str}t`;
-  };
-
+  /**
+   * Hovedberegning av reisetid, jobbtid, og fordeling på KRT / INT.
+   *
+   * Viktige prinsipper:
+   * - Vanlig reisevei (inntil 1t) er i utgangspunktet ikke førbar.
+   * - Ekstra reisetid utover vanlig reisevei fordeles på KRT/INT.
+   * - Ekstra jobbing i bilen:
+   *    1) Spiser først av INT (omfordeling, ingen ekstra timer totalt)
+   *    2) Kan deretter gjøre vanlig reisevei om til førbar tid (maks inntil vanlig reisevei)
+   *    3) Gir aldri flere totaltimer enn faktisk dag (start → hjem) minus lunsj.
+   */
   const beregnTid = () => {
-    const msPerHour = 3600000;
+    // Reisetid fram og tilbake
+    const utreiseTimer = timerMellom(startTime, arrivalTime);
+    const hjemreiseTimer = timerMellom(returnStartTime, returnArrivalTime);
+    const totalReiseTimer = utreiseTimer + hjemreiseTimer;
 
-    const start = new Date(`2023-01-01T${startTime}:00Z`);
-    const arrival = new Date(`2023-01-01T${arrivalTime}:00Z`);
-    const returnStart = new Date(`2023-01-01T${returnStartTime}:00Z`);
-    const returnArrival = new Date(`2023-01-01T${returnArrivalTime}:00Z`);
+    // Hele dagen fra man drar til man er hjemme igjen
+    const totalDagTimer = timerMellom(startTime, returnArrivalTime);
 
-    const drivingTime1 = arrival - start;
-    const drivingTime2 = returnArrival - returnStart;
+    // Hvor mye av reisetiden som er "vanlig reisevei" (maks 1t, men aldri mer enn total reise)
+    const vanligReiseveiTimer = Math.min(totalReiseTimer, 1);
 
-    const totalDrivingMs = drivingTime1 + drivingTime2;
-    const totalReisetidHours = totalDrivingMs / msPerHour;
+    // Reisetid utover vanlig reisevei – dette er grunnlaget for KRT/INT-reisetid
+    const reiseEtterVanligReiseveiTimer = Math.max(
+      totalReiseTimer - vanligReiseveiTimer,
+      0
+    );
 
-    // Reisetid utover første time
-    const reiseMinusNormaltidHours = Math.max(totalReisetidHours - 1, 0);
+    // Jobbtid på stedet (mellom ankomst og avreise)
+    const arbeidstid = timerMellom(arrivalTime, returnStartTime);
 
-    const jobbTidMs = returnStart - arrival;
-    const jobbTidHours = jobbTidMs / msPerHour;
+    // Lunsj og ekstra jobbing i timer
+    const lunsjISystemTimer = minutterTilTimer(lunsjMinutter);
+    const ekstraJobbISystemTimer = minutterTilTimer(ekstraJobbMinutter);
 
-    const lunsjMin = parseInt(minutesLunch, 10) || 0;
-    const lunsjHours = lunsjMin / 60;
+    // Jobbtid etter at lunsj er trukket fra
+    const jobbEtterLunsj = arbeidstid - lunsjISystemTimer;
 
-    const ekstraJobbMin = parseInt(minutesWorking, 10) || 0;
-    const ekstraJobbHours = ekstraJobbMin / 60;
+    // Fordel reisetid utover vanlig reisevei:
+    // - Inntil 1t på KRT
+    // - Resten på INT
+    const krtReiseTimer = Math.min(reiseEtterVanligReiseveiTimer, 1);
+    const intReiseTimer = Math.max(
+      reiseEtterVanligReiseveiTimer - krtReiseTimer,
+      0
+    );
 
-    const totalJobbTidHours = jobbTidHours - lunsjHours;
+    // --- Ekstra jobbing i bilen ---
 
-    // Fordel reisetid: inntil 1t på KRT, resten på INT
-    const krtReiseDel = Math.min(reiseMinusNormaltidHours, 1);
-    const intReiseDel = Math.max(reiseMinusNormaltidHours - krtReiseDel, 0);
+    // 1) Først spiser ekstra jobbing av INT-reise (bare omfordeling, ingen ekstra totaltid)
+    const ekstraJobbSomSpiserINTTimer = Math.min(
+      intReiseTimer,
+      ekstraJobbISystemTimer
+    );
+    const ekstraJobbEtterINTTimer = Math.max(
+      ekstraJobbISystemTimer - ekstraJobbSomSpiserINTTimer,
+      0
+    );
 
-    // NY LOGIKK:
-    // Ekstra jobbing i bil reduserer INT først,
-    // resten (hvis ekstraJobb > intReiseDel) gir ekstra KRT-tid.
-    const ekstraJobbTrekkFraINT = Math.min(intReiseDel, ekstraJobbHours);
-    const justertINTReise = intReiseDel - ekstraJobbTrekkFraINT;
+    // 2) Deretter kan ekstra jobbing gjøre "vanlig reisevei" om til førbar tid
+    //    Men aldri mer enn det som faktisk er vanlig reisevei.
+    const ekstraJobbSomGirNyTidTimer = Math.min(
+      ekstraJobbEtterINTTimer,
+      vanligReiseveiTimer
+    );
 
-    // KRT får fortsatt all ekstra jobbing + KRT-reise + jobbtid
-    const KRTBase = totalJobbTidHours + ekstraJobbHours + krtReiseDel;
-    const INTBase = justertINTReise;
+    // Oppdatert INT-reisetid etter at noe er "spist opp" av ekstra jobbing
+    const justertIntReiseTimer = intReiseTimer - ekstraJobbSomSpiserINTTimer;
 
-    const finalKRT = roundToQuarter
-      ? roundToNearestQuarterUp(KRTBase)
-      : Math.max(KRTBase, 0);
+    // KRT får:
+    // - jobbtid etter lunsj
+    // - reisetid (KRT-del)
+    // - ekstra jobbing som har spist av INT
+    // - ekstra jobbing som gjør vanlig reisevei om til arbeidstid
+    const krtUtenAvrunding =
+      jobbEtterLunsj +
+      krtReiseTimer +
+      ekstraJobbSomSpiserINTTimer +
+      ekstraJobbSomGirNyTidTimer;
 
-    const finalINT = roundToQuarter
-      ? roundToNearestQuarterUp(INTBase)
-      : Math.max(INTBase, 0);
+    // INT får kun reisetid som gjenstår etter at ekstra jobbing har spist av den
+    const intUtenAvrunding = justertIntReiseTimer;
 
-    setTotalReisetid(totalReisetidHours);
-    setReiseTidMinusNormaltid(reiseMinusNormaltidHours);
-    setJobbTid(jobbTidHours);
-    setLunsjTid(lunsjHours);
-    setEkstraJobbTid(ekstraJobbHours);
-    setTotalJobbTid(totalJobbTidHours);
-    setKRTTid(finalKRT);
-    setINTTid(finalINT);
+    // Øvre grense: du kan aldri føre mer enn faktisk tid borte minus lunsj
+    const maksFørbarTidTimer = Math.max(totalDagTimer - lunsjISystemTimer, 0);
+
+    let krtJustert = Math.max(krtUtenAvrunding, 0);
+    let intJustert = Math.max(intUtenAvrunding, 0);
+
+    const sumFørbarUtenAvrunding = krtJustert + intJustert;
+
+    if (sumFørbarUtenAvrunding > maksFørbarTidTimer) {
+      // Trekk først fra KRT, siden det er der ekstra jobbing i bilen slår inn
+      const overskytende = sumFørbarUtenAvrunding - maksFørbarTidTimer;
+      krtJustert = Math.max(krtJustert - overskytende, 0);
+      // Skulle det fortsatt være igjen noe (teoretisk), trekker vi også fra INT
+      const nySum = krtJustert + intJustert;
+      if (nySum > maksFørbarTidTimer) {
+        const resterende = nySum - maksFørbarTidTimer;
+        intJustert = Math.max(intJustert - resterende, 0);
+      }
+    }
+
+    const endeligKRT = rundOppTilKvarter
+      ? rundOppTilNesteKvarter(krtJustert)
+      : krtJustert;
+
+    const endeligINT = rundOppTilKvarter
+      ? rundOppTilNesteKvarter(intJustert)
+      : intJustert;
+
+    // Oppdater state med alle delverdier
+    setTotalReisetidTimer(totalReiseTimer);
+    setReisetidUtoverForsteTime(reiseEtterVanligReiseveiTimer);
+    setArbeidstidTimer(arbeidstid);
+    setLunsjTimer(lunsjISystemTimer);
+    setEkstraJobbTimer(ekstraJobbISystemTimer);
+    setJobbTidEtterLunsjTimer(jobbEtterLunsj);
+    setKrtTimer(endeligKRT);
+    setIntTimer(endeligINT);
   };
 
   // Verdier for å forklare INT-raden visuelt
-  const intReisetidGrunnlag = Math.max(reiseTidMinusNormaltid - 1, 0); // samme som intReiseDel
-  const ekstraJobbTrekkFraINT = Math.min(intReisetidGrunnlag, ekstraJobbTid);
+  // (det som gjenstår av reisetid etter at KRT har fått sin del)
+  const intReisetidGrunnlagTimer = Math.max(
+    reisetidUtoverForsteTime - Math.min(reisetidUtoverForsteTime, 1),
+    0
+  );
+  const ekstraJobbSomErFlyttetFraINT = Math.min(
+    intReisetidGrunnlagTimer,
+    ekstraJobbTimer
+  );
 
   return (
     <div className="calculator">
@@ -193,18 +304,19 @@ const TimeCalculator = () => {
                   className="numberInputWithSuffix"
                   type="number"
                   min="0"
-                  value={minutesLunch === null ? "" : minutesLunch}
+                  value={lunsjMinutter === null ? "" : lunsjMinutter}
                   onChange={(e) => {
                     const raw = e.target.value;
                     if (raw === "") {
-                      setMinutesLunch(null);
+                      setLunsjMinutter(null);
                       return;
                     }
-                    setMinutesLunch(raw);
+                    setLunsjMinutter(Number(raw));
                   }}
                   onBlur={() => {
-                    const num = Math.max(0, parseInt(minutesLunch, 10) || 0);
-                    setMinutesLunch(num);
+                    let num = parseInt(String(lunsjMinutter ?? 0), 10) || 0;
+                    num = Math.max(0, num);
+                    setLunsjMinutter(num);
                   }}
                 />
                 <span className="inputSuffix">minutter</span>
@@ -220,18 +332,32 @@ const TimeCalculator = () => {
                   className="numberInputWithSuffix"
                   type="number"
                   min="0"
-                  value={minutesWorking === null ? "" : minutesWorking}
+                  value={ekstraJobbMinutter === null ? "" : ekstraJobbMinutter}
                   onChange={(e) => {
                     const raw = e.target.value;
                     if (raw === "") {
-                      setMinutesWorking(null);
+                      setEkstraJobbMinutter(null);
                       return;
                     }
-                    setMinutesWorking(raw);
+                    let value = parseInt(raw, 10);
+                    if (Number.isNaN(value)) value = 0;
+
+                    // Ikke la ekstra jobbing overstige total reisetid i minutter
+                    value = Math.max(
+                      0,
+                      Math.min(value, maksEkstraJobbMinutter)
+                    );
+
+                    setEkstraJobbMinutter(value);
                   }}
                   onBlur={() => {
-                    const num = Math.max(0, parseInt(minutesWorking, 10) || 0);
-                    setMinutesWorking(num);
+                    let num =
+                      parseInt(String(ekstraJobbMinutter ?? 0), 10) || 0;
+                    num = Math.max(0, num);
+                    if (num > maksEkstraJobbMinutter) {
+                      num = maksEkstraJobbMinutter;
+                    }
+                    setEkstraJobbMinutter(num);
                   }}
                 />
                 <span className="inputSuffix">minutter</span>
@@ -254,39 +380,38 @@ const TimeCalculator = () => {
             <div className="tableRow">
               <p className="firstColumn">KRT-kode</p>
               <div className="grunnlagKRT">
-                <div>+{formatHoursShort(totalJobbTid)} jobbtid</div>
-                <div>-{formatHoursShort(lunsjTid)} lunsj</div>
+                <div>+{formaterTimerKort(jobbTidEtterLunsjTimer)} jobbtid</div>
+                <div>-{formaterTimerKort(lunsjTimer)} lunsj</div>
                 <div>
-                  -{formatHoursShort(Math.min(totalReisetid, 1))} normal
+                  -{formaterTimerKort(Math.min(totalReisetidTimer, 1))} normal
                   reisevei
                 </div>
-                <div>+{formatHoursShort(ekstraJobbTid)} ekstra jobbing</div>
+                <div>+{formaterTimerKort(ekstraJobbTimer)} ekstra jobbing</div>
                 <div>
-                  +{formatHoursShort(Math.min(reiseTidMinusNormaltid, 1))}{" "}
+                  +{formaterTimerKort(Math.min(reisetidUtoverForsteTime, 1))}{" "}
                   reisetid
                 </div>
               </div>
-              <span>{formatHoursShort(KRTTid)}</span>
+              <span>{formaterTimerKort(krtTimer)}</span>
             </div>
 
             <div className="tableRow">
               <p className="firstColumn">INT5153</p>
               <div className="grunnlagINT">
                 <div>
-                  +{formatHoursShort(intReisetidGrunnlag)} ekstra reisetid
+                  +{formaterTimerKort(intReisetidGrunnlagTimer)} ekstra reisetid
                 </div>
                 <div>
-                  {ekstraJobbTrekkFraINT > 0 && (
+                  {ekstraJobbSomErFlyttetFraINT > 0 && (
                     <i>
                       {"("}
-                      {formatHoursShort(ekstraJobbTrekkFraINT)} ekstra jobbtid
-                      er flyttet til KRT
-                      {")"}
+                      {formaterTimerKort(ekstraJobbSomErFlyttetFraINT)} ekstra
+                      jobbtid er flyttet til KRT{")"}
                     </i>
                   )}
                 </div>
               </div>
-              <span>{formatHoursShort(INTTid)}</span>
+              <span>{formaterTimerKort(intTimer)}</span>
             </div>
 
             <div className="roundingToggle">
@@ -294,8 +419,8 @@ const TimeCalculator = () => {
                 Rund opp til nærmeste kvarter
                 <input
                   type="checkbox"
-                  checked={roundToQuarter}
-                  onChange={(e) => setRoundToQuarter(e.target.checked)}
+                  checked={rundOppTilKvarter}
+                  onChange={(e) => setRundOppTilKvarter(e.target.checked)}
                 />
               </label>
             </div>
