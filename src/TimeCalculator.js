@@ -384,7 +384,7 @@ const TimeCalculator = () => {
               <p className="firstColumn">INT5153</p>
               <div className="grunnlagINT">
                 <div>
-                  +{formaterTimerKort(intReisetidGrunnlagTimer)} ekstra reisetid
+                  +{formaterTimerKort(intReisetidGrunnlagTimer)} reisetid
                 </div>
                 <div>
                   {ekstraJobbSomErFlyttetFraINT > 0 && (
