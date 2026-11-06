@@ -96,11 +96,17 @@ input:focus {
 
 /* Nummer-input får ekstra padding høyre så tekst ikke overlapper "minutter" */
 
+/* Sentrer vertikalt uten å klippe innholdet når skjermen er lav:
+   margin: auto i en flex-container sentrerer når det er plass, og lar
+   siden scrolle når innholdet er høyere enn vinduet. */
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+}
+
 .calculator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  margin: auto;
   width: 100%;
   max-width: 700px;
   overflow: hidden;
@@ -159,13 +165,59 @@ h1 {
 .roundingToggle > label {
   display: inline-flex;
   flex-direction: row;
-  gap: 6px;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
 }
 
-.roundingToggle > label > input {
-  width: 16px;
-  height: 16px;
+/* Switch: en vanlig checkbox som er tegnet opp som en bryter */
+.roundingToggle .switch {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 44px;
+  height: 26px;
   margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dark);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.roundingToggle .switch::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+.roundingToggle .switch:checked {
+  background: var(--black);
+}
+
+.roundingToggle .switch:checked::before {
+  transform: translateX(18px);
+}
+
+.roundingToggle .switch:focus-visible {
+  outline: 2px solid var(--black);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roundingToggle .switch,
+  .roundingToggle .switch::before {
+    transition: none;
+  }
 }
 
 .desktopColumn,
@@ -175,12 +227,10 @@ h1 {
 }
 
 @media screen and (max-width: 700px) {
-  .calculator {
-    position: relative;
-    top: 0;
-    left: 0;
-    padding: 12px;
-    transform: translate(0);
+  /* Grå containere tar full bredde; overskriften får samme sidepadding
+     som inputfeltene (1.5rem) så de står på linje */
+  .calculatorHeader {
+    padding: 0 1.5rem;
   }
   .inputColumn {
     flex-direction: column;
@@ -198,8 +248,21 @@ h1 {
     display: flex;
   }
   .timeInputWithPrefix {
-    padding-left: 0px; /* juster etter font/size */
-    padding-right: 0px;
+    padding-left: 22px;
+    padding-right: 22px;
+    text-align: left;
+    /* iOS Safari gjør tidsfelt bredere enn containeren sin uten dette */
+    -webkit-appearance: none;
+    appearance: none;
+    min-width: 0;
+    max-width: 100%;
+    /* ...og farger klokkeslettet blått */
+    color: var(--black);
+    -webkit-text-fill-color: var(--black);
+  }
+  /* iOS Safari sentrerer klokkeslettet som standard */
+  .timeInputWithPrefix::-webkit-date-and-time-value {
+    text-align: left;
   }
   .inputPrefix {
     display: none;
@@ -207,15 +270,5 @@ h1 {
   .inputSuffix {
     right: 22px;
     left: initial;
-  }
-  .roundingToggle > label {
-    gap: 8px;
-  }
-  input[type="checkbox"] {
-    width: initial;
-    height: initial;
-    margin: initial;
-    padding: initial;
-    transform: scale(1.3);
   }
 }

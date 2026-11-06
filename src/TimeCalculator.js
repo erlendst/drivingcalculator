@@ -406,6 +406,8 @@ const TimeCalculator = () => {
                 Rund opp til nærmeste kvarter
                 <input
                   type="checkbox"
+                  role="switch"
+                  className="switch"
                   checked={rundOppTilKvarter}
                   onChange={(e) => setRundOppTilKvarter(e.target.checked)}
                 />
