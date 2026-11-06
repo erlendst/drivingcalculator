@@ -46,10 +46,10 @@ const formaterTimerKort = (timer) => {
 
 const TimeCalculator = () => {
   // Inndata (tidspunkter)
-  const [startTime, setStartTime] = useState("08:00");
-  const [arrivalTime, setArrivalTime] = useState("09:30");
-  const [returnStartTime, setReturnStartTime] = useState("14:30");
-  const [returnArrivalTime, setReturnArrivalTime] = useState("16:00");
+  const [startTime, setStartTime] = useState("07:30");
+  const [arrivalTime, setArrivalTime] = useState("09:00");
+  const [returnStartTime, setReturnStartTime] = useState("15:00");
+  const [returnArrivalTime, setReturnArrivalTime] = useState("16:30");
 
   // Inndata (minutter)
   const [ekstraJobbMinutter, setEkstraJobbMinutter] = useState(0);
