@@ -61,7 +61,6 @@ const TimeCalculator = () => {
   const [arbeidstidTimer, setArbeidstidTimer] = useState(0);
   const [lunsjTimer, setLunsjTimer] = useState(0);
   const [ekstraJobbTimer, setEkstraJobbTimer] = useState(0);
-  const [jobbTidEtterLunsjTimer, setJobbTidEtterLunsjTimer] = useState(0);
   const [krtTimer, setKrtTimer] = useState(0);
   const [intTimer, setIntTimer] = useState(0);
 
@@ -199,7 +198,6 @@ const TimeCalculator = () => {
     setArbeidstidTimer(arbeidstid);
     setLunsjTimer(lunsjISystemTimer);
     setEkstraJobbTimer(ekstraJobbISystemTimer);
-    setJobbTidEtterLunsjTimer(jobbEtterLunsj);
     setKrtTimer(endeligKRT);
     setIntTimer(endeligINT);
   };
@@ -372,13 +370,12 @@ const TimeCalculator = () => {
             <div className="tableRow">
               <p className="firstColumn">KRT-kode</p>
               <div className="grunnlagKRT">
-                <div>+{formaterTimerKort(jobbTidEtterLunsjTimer)} jobbtid</div>
+                <div>+{formaterTimerKort(arbeidstidTimer)} jobbtid</div>
                 <div>-{formaterTimerKort(lunsjTimer)} lunsj</div>
                 <div>
-                  -{formaterTimerKort(Math.min(totalReisetidTimer, 1))} normal
-                  reisevei
+                  +{formaterTimerKort(Math.min(ekstraJobbTimer, totalReisetidTimer))}{" "}
+                  ekstra jobbing
                 </div>
-                <div>+{formaterTimerKort(ekstraJobbTimer)} ekstra jobbing</div>
               </div>
               <span>{formaterTimerKort(krtTimer)}</span>
             </div>
