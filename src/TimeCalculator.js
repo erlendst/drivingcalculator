@@ -91,7 +91,7 @@ const TimeCalculator = () => {
    *
    * Viktige prinsipper:
    * - Vanlig reisevei (inntil 1t) er i utgangspunktet ikke førbar.
-   * - Ekstra reisetid utover vanlig reisevei fordeles på KRT/INT.
+   * - Ekstra reisetid utover vanlig reisevei havner på INT.
    * - Ekstra jobbing i bilen:
    *    1) Spiser først av INT (omfordeling, ingen ekstra timer totalt)
    *    2) Kan deretter gjøre vanlig reisevei om til førbar tid (maks inntil vanlig reisevei)
@@ -109,7 +109,7 @@ const TimeCalculator = () => {
     // Hvor mye av reisetiden som er "vanlig reisevei" (maks 1t, men aldri mer enn total reise)
     const vanligReiseveiTimer = Math.min(totalReiseTimer, 1);
 
-    // Reisetid utover vanlig reisevei – dette er grunnlaget for KRT/INT-reisetid
+    // Reisetid utover vanlig reisevei – dette er grunnlaget for INT-reisetid
     const reiseEtterVanligReiseveiTimer = Math.max(
       totalReiseTimer - vanligReiseveiTimer,
       0
@@ -125,14 +125,9 @@ const TimeCalculator = () => {
     // Jobbtid etter at lunsj er trukket fra
     const jobbEtterLunsj = arbeidstid - lunsjISystemTimer;
 
-    // Fordel reisetid utover vanlig reisevei:
-    // - Inntil 1t på KRT
-    // - Resten på INT
-    const krtReiseTimer = Math.min(reiseEtterVanligReiseveiTimer, 1);
-    const intReiseTimer = Math.max(
-      reiseEtterVanligReiseveiTimer - krtReiseTimer,
-      0
-    );
+    // Reisetid utover vanlig reisevei havner i sin helhet på INT
+    const krtReiseTimer = 0;
+    const intReiseTimer = reiseEtterVanligReiseveiTimer;
 
     // --- Ekstra jobbing i bilen ---
 
@@ -210,11 +205,8 @@ const TimeCalculator = () => {
   };
 
   // Verdier for å forklare INT-raden visuelt
-  // (det som gjenstår av reisetid etter at KRT har fått sin del)
-  const intReisetidGrunnlagTimer = Math.max(
-    reisetidUtoverForsteTime - Math.min(reisetidUtoverForsteTime, 1),
-    0
-  );
+  // (all reisetid utover vanlig reisevei)
+  const intReisetidGrunnlagTimer = Math.max(reisetidUtoverForsteTime, 0);
   const ekstraJobbSomErFlyttetFraINT = Math.min(
     intReisetidGrunnlagTimer,
     ekstraJobbTimer
@@ -387,10 +379,6 @@ const TimeCalculator = () => {
                   reisevei
                 </div>
                 <div>+{formaterTimerKort(ekstraJobbTimer)} ekstra jobbing</div>
-                <div>
-                  +{formaterTimerKort(Math.min(reisetidUtoverForsteTime, 1))}{" "}
-                  reisetid
-                </div>
               </div>
               <span>{formaterTimerKort(krtTimer)}</span>
             </div>
